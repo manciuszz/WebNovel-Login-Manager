@@ -4,8 +4,13 @@ It's a script an Auto-Login and Check-In Manager for WebNovel.com. Created for t
 
 #### Installation
 
-1. Install Tampermonkey
-1. Select a script in this repo that you wish to use. View the file and click the Raw button at the top of the file to 2. 1. view its source
+1. Install latest [Tampermonkey](https://tampermonkey.net)
+2. Open [loginManager.user.js](https://github.com/manciuszz/WebNovel-Login-Manager/raw/master/loginManager.user.js)
+3. Click Install
+
+> Otherwise
+
+1. Select a script in this repo that you wish to use. View the file and click the Raw button at the top of the file to view its source.
 1. Copy the source
 1. Open Tampermonkey in your browser and click the Add Script tab (icon with a plus symbol)
 1. Paste the source into the script window and hit save

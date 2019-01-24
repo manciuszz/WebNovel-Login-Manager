@@ -11,7 +11,10 @@ It's a script an Auto-Login and Check-In Manager for WebNovel.com. Created for t
 1. Paste the source into the script window and hit save
 1. Viola!
 
+To add more accounts, you'll have to manually edit the code -> insert them inside a dictionary as key/value pairs (Line 22 as highlighted below).
+![Login Manager Preview](/previewImages/insertAccounts.png)
+
 ### Preview
-![Login Manager Preview](/previewImages/snap1.png)
+![Login Manager Preview](/previewImages/overview.png)
 
 

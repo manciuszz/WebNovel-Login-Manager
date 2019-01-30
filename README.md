@@ -1,6 +1,6 @@
 # WebNovel | Login Manager
 
-It's a script an Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake/temporary accounts that 'farms' soulstones.
+Auto-Login and Check-In Manager for WebNovel.com. It's a script, created for the sole purpose of easier management of fake/temporary accounts that 'farms' soulstones.
 
 #### Installation
 

@@ -18,7 +18,7 @@
     unsafeWindow.top.selectedAccount = typeof unsafeWindow.top.selectedAccount !== "undefined" ? unsafeWindow.top.selectedAccount : null;
 
     // Raw, unencrypted and hard-coded login account information goes here...
-    var loginData = {
+	var loginData = {
         "example1@example.com": "example1",
 		"example2@example.com": "example2",
 		"example3@example.com": "example3",
@@ -86,7 +86,20 @@
                 window.open('https://www.google.com/search?q=temporary+mail', "_blank", "toolbar=yes,top=100,left=600,width=1080,height=800");
             });
         controlKit._panels[0]._onMenuHideMouseDown(); // Start minimized.
-        document.getElementById("controlKit").style.zIndex = 9999;
+        var controlKit_Element = document.getElementById("controlKit");
+        controlKit_Element.style.zIndex = 9999; // Bring to front.
+
+        // Show/Hide menus on hover in/out
+        var toggleHide = (function() {
+            var panel = controlKit_Element.getElementsByClassName("panel")[0];
+            return function(e) {
+                panel.style.overflow = e.type == "mouseenter" ? "unset" : "";
+                controlKit._panels[0]._onMenuHideMouseDown();
+            }
+        })();
+
+        controlKit_Element.addEventListener('mouseenter', toggleHide, false);
+        controlKit_Element.addEventListener('mouseleave', toggleHide, false);
     };
 
     var lbfModuleAvailable = function() {

@@ -55,6 +55,7 @@
         }
 
         var guiSettings = {
+            serverTime: 'Checking...',
             accounts: Object.keys(loginData),
             selection: 0,
         };
@@ -62,6 +63,7 @@
         var controlKit = new ControlKit();
         controlKit.setShortcutEnable('b');
         controlKit.addPanel({label: 'WebNovel.com | Login Manager | ©MMWorks', fixed: true, align: 'right', width: 300})
+            .addStringOutput(guiSettings, 'serverTime', {label: "Server Time"})
             .addSelect(guiSettings, 'accounts', {
                  label: "Account",
                  target: unsafeWindow.top.selectedAccount || 0,
@@ -100,6 +102,38 @@
 
         controlKit_Element.addEventListener('mouseenter', toggleHide, false);
         controlKit_Element.addEventListener('mouseleave', toggleHide, false);
+        createClock();
+    };
+
+    var getServerTime = function() {
+        return $.ajax({async: false}).getResponseHeader( 'Date' );
+    };
+
+    var createClock = function() {
+        var serverTimeObject, hours, minutes, seconds;
+        var clockId = setInterval(function() {
+            if (typeof $ === "undefined")
+                return;
+            if (!seconds) {
+                [hours, minutes, seconds] = getServerTime().split(' ')[4].split(":");
+                serverTimeObject = $("#controlKit :contains('Server Time')").find('textarea');
+                if (!serverTimeObject.length)
+                    return clearInterval(clockId);
+            }
+            seconds = parseInt(seconds) + 1;
+            if (seconds >= 60) minutes = parseInt(minutes) + 1;
+            if (minutes >= 60) hours = parseInt(hours) + 1;
+
+            hours = hours % 24;
+            minutes = minutes % 60;
+            seconds = seconds % 60;
+
+            if (hours   < 10) { hours   = "0" + hours;   }
+            if (minutes < 10) { minutes = "0" + minutes; }
+            if (seconds < 10) { seconds = "0" + seconds; }
+
+            serverTimeObject.val([hours, minutes, seconds].join(":"));
+        }, 1000);
     };
 
     var lbfModuleAvailable = function() {

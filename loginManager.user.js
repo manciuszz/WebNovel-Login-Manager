@@ -15,15 +15,26 @@
 (function loginManager() {
     'use strict';
 
+    // Prevent them from logging your data with 'Sentry' for safety reasons...
+    !function(send){
+        XMLHttpRequest.prototype.send = function(data) {
+            if ((data || "").indexOf("logger") !== -1) {
+                //console.log("Intercepted Sentry!", arguments);
+            } else {
+                send.call(this, data);
+            }
+        }
+    }(XMLHttpRequest.prototype.send);
+
     unsafeWindow.top.selectedAccount = typeof unsafeWindow.top.selectedAccount !== "undefined" ? unsafeWindow.top.selectedAccount : null;
 
     // Raw, unencrypted and hard-coded login account information goes here...
 	var loginData = {
-        "example1@example.com": "example1",
-		"example2@example.com": "example2",
-		"example3@example.com": "example3",
-		"example4@example.com": "example4",
-    };
+		"example1@example.com": "password1",
+		"example2@example.com": "password2",
+		"example3@example.com": "password3",
+		"example4@example.com": "password4",
+	};
 
     var LBF_Paths = {
         index: 'en/js/common/index.59031.js',
@@ -195,11 +206,107 @@
         return $(jQueryObjects.checkIn + '._checked').length;
     };
 
+    var getSSHistory = function(callbackFn) {
+        return $.ajax({
+            type: "GET",
+            url: "/apiajax/SpiritStone/getSSHistoryAjax",
+            data: {
+                pageIndex: 1,
+                transType: 1
+            },
+            success: function(t) {
+                if (typeof callbackFn === "function")
+                    callbackFn(t);
+            }
+        });
+    };
+
+    var getPowerStoneRankings = function(callbackFn) {
+        return $.ajax({
+            type: "GET",
+            url: "/apiajax/powerStone/getListAjax",
+            data: {pageIndex: 1, type: 2},
+            success: function(a) {
+                if (typeof callbackFn === "function")
+                    callbackFn(a);
+            }
+        });
+    };
+
+    var getMoreBooks = function(callbackFn) {
+        return $.ajax({
+            type: "GET",
+            url: "/apiajax/translationVote/getAjax",
+            data: {
+                pageIndex: 1,
+                gender: 1
+            },
+            success: function(e) {
+                if (typeof callbackFn === "function")
+                    callbackFn(e);
+            }
+        });
+    };
+
+    var postPowerVote = function(bookId) {
+        return $.ajax({
+            type: "POST",
+            url: "/apiajax/powerStone/vote",
+            data: {
+                bookId: bookId
+            },
+            success: function(o) {
+                console.log(o);
+            }
+        });
+    };
+
+    var postVote = function(bookId) {
+        return $.ajax({
+            type: "POST",
+            url: "/apiajax/translationVote/vote",
+            data: {bookId: bookId},
+            success: function(msg) {
+                console.log(msg);
+            }
+        });
+    };
+
     var checkInSS = function() {
         if (lbfModuleAvailable() && checkIfAlreadyLoggedIn() && !checkedInSS()) {
             LBF.require(LBF_Paths.commonMethod).addSignInSS($(window));
             $(jQueryObjects.checkIn).addClass("_checked");
         }
+    };
+
+    var checkInOtherSS = function() {
+        getMoreBooks(function(voteBooks) {
+            var hasVote = voteBooks.data.hasVote;
+            if (hasVote) {
+                var items = voteBooks.data.items;
+                postVote(items[0].bookId);
+            }
+
+            getSSHistory(function(ssHistory) {
+                var items = ssHistory.data.items;
+                var today = new Date().toDateString();
+                var _12HoursAgo = (12 * 60 * 60 * 1000);
+                var canVote = true;
+                $(items).each(function(index, historyData) {
+                    var itemTime = new Date(historyData.time).toDateString();
+                    var timeDiff = (+new Date - new Date(historyData.time));
+                    if (today === itemTime && historyData.changeType === 6 && canVote)
+                        canVote = timeDiff > _12HoursAgo;
+                });
+
+                if (canVote) {
+                    getPowerStoneRankings(function(rankings) {
+                        var items = rankings.data.items;
+                        postPowerVote(items[0].bookId);
+                    });
+                }
+            });
+        });
     };
 
     var managerLoop = (function f() {
@@ -208,6 +315,7 @@
                 return;
             } else if (checkIfAlreadyLoggedIn()) {
                 checkInSS();
+                checkInOtherSS();
                 console.log("[WebNovel-Login Manager] Already logged in as " + g_data.login.user.userName);
                 return clearInterval(intervalId);
             } else if (unsafeWindow.top.selectedAccount === null) {

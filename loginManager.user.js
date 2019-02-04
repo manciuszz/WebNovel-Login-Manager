@@ -278,35 +278,60 @@
     };
 
     var checkInOtherSS = function() {
+        let formatDate = function(date) {
+            var d = new Date(date),
+                month = '' + (d.getMonth() + 1),
+                day = '' + d.getDate(),
+                year = d.getFullYear();
+
+            if (month.length < 2) month = '0' + month;
+            if (day.length < 2) day = '0' + day;
+
+            return [year, month, day].join('-');
+        };
+
         getMoreBooks(function(voteBooks) {
             var canDoEnergyVote = voteBooks.data.hasVote;
 
             getSSHistory(function(ssHistory) {
-                var today = new Date().setHours(18, 0, 0); // Time when users receive daily stones.
-                var items = ssHistory.data.items;
+                let items = $(ssHistory.data.items);
+
+                let currentTime = new Date();
+                let yesterdayDate = new Date().setDate(new Date().getDate() - 1);
+                let dailyStoneResetTime = new Date().setHours(18, 0, 0); // Time when users receive daily stones.
 
                 if (canDoEnergyVote) { // Don't have energy stones - can't vote.
-                    var receivedEnergyStones = $(items).filter(function(index, item) {
-                        return item.changeType === 4 && new Date(item.time) > today;
+                    var receivedEnergyStonesYesterday = items.filter(function(index, item) {
+                        let receivedDate = new Date(item.time);
+                        return item.changeType === 4 && formatDate(receivedDate) === formatDate(yesterdayDate);
                     });
 
-                    canDoEnergyVote = !receivedEnergyStones.length;
-                    if (canDoEnergyVote) {
-                        var items = voteBooks.data.items;
+                    var receivedEnergyStonesToday = items.filter(function(index, item) {
+                        let receivedDate = new Date(item.time);
+                        return item.changeType === 4 && formatDate(receivedDate) === formatDate(currentTime);
+                    });
+
+                    if (receivedEnergyStonesToday.length === 0 && (receivedEnergyStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
+                        let items = voteBooks.data.items;
                         postVote(items[0].bookId);
                     }
                 }
 
                 var canVote = parseInt($(".j_ps_num").text()) > 0; // Don't have power stones - can't vote.
                 if (canVote) {
-                    var receivedPowerStones = $(items).filter(function(index, item) {
-                        return item.changeType === 6 && new Date(item.time) > today;
+                    var receivedPowerStonesYesterday = items.filter(function(index, item) {
+                        let receivedDate = new Date(item.time);
+                        return item.changeType === 6 && formatDate(receivedDate) === formatDate(currentTime);
                     });
 
-                    canVote = !receivedPowerStones.length;
-                    if (canVote) {
+                    var receivedPowerStonesToday = items.filter(function(index, item) {
+                        let receivedDate = new Date(item.time);
+                        return item.changeType === 6 && formatDate(receivedDate) === formatDate(currentTime);
+                    });
+
+                    if (receivedPowerStonesToday.length === 0 && (receivedPowerStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
                         getPowerStoneRankings(function(rankings) {
-                            var items = rankings.data.items;
+                            let items = rankings.data.items;
                             postPowerVote(items[0].bookId);
                         });
                     }

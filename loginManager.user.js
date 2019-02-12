@@ -37,8 +37,13 @@
 	};
 
     var LBF_Paths = {
-        index: 'en/js/common/index.59031.js',
-        commonMethod: 'en/js/common/page/commonMethod.d9f85.js'
+        matchPath: function(pathRegex) {
+            let regex = new RegExp('/' + pathRegex, 'g');
+            let matchedPaths = Object.keys(LBF.cache).filter((path, id) => path.match(regex));
+            return matchedPaths[0];
+        },
+        get index() { return this.matchPath('en/js/common/index.*.js'); },
+        get commonMethod() { return this.matchPath('en/js/common/page/commonMethod.*.js'); }
     };
 
     var jQueryObjects = {
@@ -46,7 +51,6 @@
         inputs: ".m-input > input",
         emailButton: "a.bt.bt-block._e",
         loginForm: ".g_mod_login.g_mod_wrap._on",
-        checkIn: ".g_bt_checkin",
         reCaptchaBox: ".recaptcha-checkbox"
     };
 
@@ -202,8 +206,9 @@
         reCaptchaBox.click();
     };*/
 
-    var checkedInSS = function() {
-        return $(jQueryObjects.checkIn + '._checked').length;
+    var checkedInSS = function(callbackFn) {
+        if (typeof callbackFn === "function")
+            LBF.require(LBF_Paths.index).Task.getTaskList(1).then( (result) => callbackFn(result.data) );
     };
 
     var getSSHistory = function(callbackFn) {
@@ -271,9 +276,11 @@
     };
 
     var checkInSS = function() {
-        if (lbfModuleAvailable() && checkIfAlreadyLoggedIn() && !checkedInSS()) {
-            LBF.require(LBF_Paths.commonMethod).addSignInSS($(window));
-            $(jQueryObjects.checkIn).addClass("_checked");
+        if (lbfModuleAvailable() && checkIfAlreadyLoggedIn()) {
+            checkedInSS(function(data) {
+                if (!data.user.isCheckIn)
+                    LBF.require(LBF_Paths.commonMethod).addSignInSS($(window));
+            });
         }
     };
 

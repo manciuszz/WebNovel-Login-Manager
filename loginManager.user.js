@@ -51,6 +51,7 @@
         inputs: ".m-input > input",
         emailButton: "a.bt.bt-block._e",
         loginForm: ".g_mod_login.g_mod_wrap._on",
+        checkIn: "._check_in",
         reCaptchaBox: ".recaptcha-checkbox"
     };
 
@@ -278,15 +279,15 @@
     var checkInSS = function() {
         if (lbfModuleAvailable() && checkIfAlreadyLoggedIn()) {
             checkedInSS(function(data) {
-                if (!data.user.isCheckIn)
+                if (data.taskList[0].completeStatus !== 3)
                     LBF.require(LBF_Paths.commonMethod).addSignInSS($(window));
             });
         }
     };
 
     var checkInOtherSS = function() {
-        let formatDate = function(date) {
-            var d = new Date(date),
+        let formatDate = function(time) {
+            var d = new Date(time),
                 month = '' + (d.getMonth() + 1),
                 day = '' + d.getDate(),
                 year = d.getFullYear();
@@ -307,18 +308,18 @@
                 let yesterdayDate = new Date().setDate(new Date().getDate() - 1);
                 let dailyStoneResetTime = new Date().setHours(18, 0, 0); // Time when users receive daily stones.
 
+                let filterStones = function(stonesID, callbackFn) {
+                    return items.filter(function(index, item) {
+                        let receivedDate = new Date(item.time);
+                        return item.changeType === stonesID && callbackFn(receivedDate);
+                    });
+                };
+
                 if (canDoEnergyVote) { // Don't have energy stones - can't vote.
-                    var receivedEnergyStonesYesterday = items.filter(function(index, item) {
-                        let receivedDate = new Date(item.time);
-                        return item.changeType === 4 && formatDate(receivedDate) === formatDate(yesterdayDate);
-                    });
+                    var receivedEnergyStonesYesterday = filterStones(4, receivedDate => formatDate(receivedDate) === formatDate(yesterdayDate));
+                    var receivedEnergyStonesTodayPostReset = filterStones(4, receivedDate => formatDate(receivedDate) === formatDate(currentTime) && receivedDate > dailyStoneResetTime);
 
-                    var receivedEnergyStonesToday = items.filter(function(index, item) {
-                        let receivedDate = new Date(item.time);
-                        return item.changeType === 4 && formatDate(receivedDate) === formatDate(currentTime);
-                    });
-
-                    if (receivedEnergyStonesToday.length === 0 && (receivedEnergyStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
+                    if (receivedEnergyStonesTodayPostReset.length === 0 && (receivedEnergyStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
                         let items = voteBooks.data.items;
                         postVote(items[0].bookId);
                     }
@@ -326,24 +327,16 @@
 
                 var canVote = parseInt($(".j_ps_num").text()) > 0; // Don't have power stones - can't vote.
                 if (canVote) {
-                    var receivedPowerStonesYesterday = items.filter(function(index, item) {
-                        let receivedDate = new Date(item.time);
-                        return item.changeType === 6 && formatDate(receivedDate) === formatDate(currentTime);
-                    });
+                    var receivedPowerStonesYesterday = filterStones(6, receivedDate => formatDate(receivedDate) === formatDate(yesterdayDate));
+                    var receivedPowerStonesTodayPostReset = filterStones(6, receivedDate => formatDate(receivedDate) === formatDate(currentTime) && receivedDate > dailyStoneResetTime);
 
-                    var receivedPowerStonesToday = items.filter(function(index, item) {
-                        let receivedDate = new Date(item.time);
-                        return item.changeType === 6 && formatDate(receivedDate) === formatDate(currentTime);
-                    });
-
-                    if (receivedPowerStonesToday.length === 0 && (receivedPowerStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
+                    if (receivedPowerStonesTodayPostReset.length === 0 && (receivedPowerStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
                         getPowerStoneRankings(function(rankings) {
                             let items = rankings.data.items;
                             postPowerVote(items[0].bookId);
                         });
                     }
                 }
-
             });
         });
     };

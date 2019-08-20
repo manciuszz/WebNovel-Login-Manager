@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2019-01-21
-// @version      0.1
+// @created      2019-08-20
+// @version      0.15
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -29,12 +29,12 @@
     unsafeWindow.top.selectedAccount = typeof unsafeWindow.top.selectedAccount !== "undefined" ? unsafeWindow.top.selectedAccount : null;
 
     // Raw, unencrypted and hard-coded login account information goes here...
-	var loginData = {
-		"example1@example.com": "password1",
-		"example2@example.com": "password2",
-		"example3@example.com": "password3",
-		"example4@example.com": "password4",
-	};
+    var loginData = {
+        "example1@example.com": "password1",
+        "example2@example.com": "password2",
+        "example3@example.com": "password3",
+        "example4@example.com": "password4",
+    };
 
     var LBF_Paths = {
         matchPath: function(pathRegex) {
@@ -43,7 +43,7 @@
             return matchedPaths[0];
         },
         get index() { return this.matchPath('en/js/common/index.*.js'); },
-        get commonMethod() { return this.matchPath('en/js/common/page/commonMethod.*.js'); }
+        get commonMethod() { return this.matchPath('en/js/common/page/commonMethod.*.js'); },
     };
 
     var jQueryObjects = {
@@ -81,28 +81,28 @@
         controlKit.addPanel({label: 'WebNovel.com | Login Manager | ©MMWorks', fixed: true, align: 'right', width: 300})
             .addStringOutput(guiSettings, 'serverTime', {label: "Server Time"})
             .addSelect(guiSettings, 'accounts', {
-                 label: "Account",
-                 target: unsafeWindow.top.selectedAccount || 0,
-                 onChange: function(index) {
-                     guiSettings.selection = index;
-                 }
-            })
-            .addButton('Login', function() {
-                if (checkIfAlreadyLoggedIn()) {
-                    sessionStorage.setItem("autoLogin", guiSettings.selection);
-                    logout();
-                } else {
-                    unsafeWindow.top.selectedAccount = guiSettings.selection;
-                }
-            })
-            .addButton('Logout', function() {
-                unsafeWindow.top.selectedAccount = null;
+            label: "Account",
+            target: unsafeWindow.top.selectedAccount || 0,
+            onChange: function(index) {
+                guiSettings.selection = index;
+            }
+        })
+		.addButton('Login', function() {
+            if (checkIfAlreadyLoggedIn()) {
+                sessionStorage.setItem("autoLogin", guiSettings.selection);
                 logout();
-            })
-            .addButton('Register', function() {
-                window.open('https://passport.webnovel.com/register.html?appid=900&areaid=1&returnurl=https%3A%2F%2Fwww.webnovel.com%2FloginSuccess&auto=1&autotime=0&source=&ver=2&fromuid=0&target=iframe&option=', "_blank", "toolbar=yes,top=100,left=600,width=500,height=800");
-                window.open('https://www.google.com/search?q=temporary+mail', "_blank", "toolbar=yes,top=100,left=600,width=1080,height=800");
-            });
+            } else {
+                unsafeWindow.top.selectedAccount = guiSettings.selection;
+            }
+        })
+		.addButton('Logout', function() {
+            unsafeWindow.top.selectedAccount = null;
+            logout();
+        })
+		.addButton('Register', function() {
+            window.open('https://passport.webnovel.com/register.html?appid=900&areaid=1&returnurl=https%3A%2F%2Fwww.webnovel.com%2FloginSuccess&auto=1&autotime=0&source=&ver=2&fromuid=0&target=iframe&option=', "_blank", "toolbar=yes,top=100,left=600,width=500,height=800");
+            window.open('https://www.google.com/search?q=temporary+mail', "_blank", "toolbar=yes,top=100,left=600,width=1080,height=800");
+        });
         controlKit._panels[0]._onMenuHideMouseDown(); // Start minimized.
         var controlKit_Element = document.getElementById("controlKit");
         controlKit_Element.style.zIndex = 9999; // Bring to front.
@@ -265,7 +265,7 @@
         });
     };
 
-    var postVote = function(bookId) {
+    var postEnergyVote = function(bookId) {
         return $.ajax({
             type: "POST",
             url: "/apiajax/translationVote/vote",
@@ -285,65 +285,64 @@
         }
     };
 
-    var checkInOtherSS = function() {
-        let formatDate = function(time) {
-            var d = new Date(time),
-                month = '' + (d.getMonth() + 1),
-                day = '' + d.getDate(),
-                year = d.getFullYear();
-
-            if (month.length < 2) month = '0' + month;
-            if (day.length < 2) day = '0' + day;
-
-            return [year, month, day].join('-');
+    var stoneManager = (function() {
+        let checkBill = function(callbackFn) {
+            return fetch("/bill/power").then((res) => {
+                return res.text();
+            }).then(callbackFn);
         };
 
-        getMoreBooks(function(voteBooks) {
-            var canDoEnergyVote = voteBooks.data.hasVote;
+        let getStones = function(DOM) {
+            let countDown = DOM.find("#countDown").attr('data-time');
 
-            getSSHistory(function(ssHistory) {
-                let items = $(ssHistory.data.items);
+            let stones = DOM.find(".stone-intro .strong-card").get();
 
-                let currentTime = new Date();
-                let yesterdayDate = new Date().setDate(new Date().getDate() - 1);
-                let dailyStoneResetTime = new Date().setHours(18, 0, 0); // Time when users receive daily stones.
+            let [powerStones, energyStones] = stones;
+            powerStones = powerStones.textContent.split("\n").map(v => v.trim()).filter(String);
+            energyStones = energyStones.textContent.split("\n").map(v => v.trim()).filter(String);
 
-                let filterStones = function(stonesID, callbackFn) {
-                    return items.filter(function(index, item) {
-                        let receivedDate = new Date(item.time);
-                        return item.changeType === stonesID && callbackFn(receivedDate);
-                    });
-                };
+            return { [powerStones[0]]: parseInt(powerStones[1]), [energyStones[0]]: parseInt(energyStones[1]), "countDown": parseInt(countDown) };
+        };
 
-                if (canDoEnergyVote) { // Don't have energy stones - can't vote.
-                    var receivedEnergyStonesYesterday = filterStones(4, receivedDate => formatDate(receivedDate) === formatDate(yesterdayDate));
-                    var receivedEnergyStonesTodayPostReset = filterStones(4, receivedDate => formatDate(receivedDate) === formatDate(currentTime) && receivedDate > dailyStoneResetTime);
+        let doVote = function(callbackFn) {
+            if (typeof callbackFn !== "function")
+                return;
 
-                    if (receivedEnergyStonesTodayPostReset.length === 0 && (receivedEnergyStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
-                        let items = voteBooks.data.items;
-                        postVote(items[0].bookId);
-                    }
-                }
+            checkBill(function(htmlText) {
+                let dom = $('<html>').html(htmlText);
 
-                var canVote = parseInt($(".j_ps_num").text()) > 0; // Don't have power stones - can't vote.
-                if (canVote) {
-                    var receivedPowerStonesYesterday = filterStones(6, receivedDate => formatDate(receivedDate) === formatDate(yesterdayDate));
-                    var receivedPowerStonesTodayPostReset = filterStones(6, receivedDate => formatDate(receivedDate) === formatDate(currentTime) && receivedDate > dailyStoneResetTime);
+                let stonesData = getStones(dom);
 
-                    if (receivedPowerStonesTodayPostReset.length === 0 && (receivedPowerStonesYesterday.length === 0 || currentTime > dailyStoneResetTime)) {
-                        getPowerStoneRankings(function(rankings) {
-                            let items = rankings.data.items;
-                            postPowerVote(items[0].bookId);
-                        });
-                    }
-                }
+                let [powerStones, energyStones, countDown] = Object.values(getStones(dom));
+                callbackFn(powerStones, energyStones, countDown);
             });
+        };
+
+        return doVote;
+    })();
+
+
+    var checkInOtherSS = function() {
+        stoneManager(function(powerStones, energyStones, countDownTilRestock) {
+            if (energyStones > 0) {
+                getMoreBooks(function(voteBooks) {
+                    let items = voteBooks.data.items;
+                    postEnergyVote(items[0].bookId);
+                });
+            }
+
+            if (powerStones > 0) {
+                getPowerStoneRankings(function(rankings) {
+                    let items = rankings.data.items;
+                    postPowerVote(items[0].bookId);
+                });
+            }
         });
     };
 
     var managerLoop = (function f() {
         var intervalId = setInterval(function() {
-            if (typeof $ === "undefined") {
+            if (typeof $ === "undefined") { // wait for jQuery lib to load.
                 return;
             } else if (checkIfAlreadyLoggedIn()) {
                 checkInSS();

@@ -258,7 +258,7 @@
         return $.ajax({
             type: "POST",
             url: "/apiajax/powerStone/vote",
-            data: { bookId: bookId },
+            data: { bookId: bookId, novelType: 0 },},
             success: function(o) {
                 console.log(o);
             }

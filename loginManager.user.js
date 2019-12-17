@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2019-08-20
-// @version      0.15
+// @created      2019-12-17
+// @version      0.16
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -29,7 +29,7 @@
     unsafeWindow.top.selectedAccount = typeof unsafeWindow.top.selectedAccount !== "undefined" ? unsafeWindow.top.selectedAccount : null;
 
     // Raw, unencrypted and hard-coded login account information goes here...
-    var loginData = {
+	var loginData = {
         "example1@example.com": "password1",
         "example2@example.com": "password2",
         "example3@example.com": "password3",
@@ -258,7 +258,7 @@
         return $.ajax({
             type: "POST",
             url: "/apiajax/powerStone/vote",
-            data: { bookId: bookId, novelType: 0 },},
+            data: { bookId: bookId, novelType: 0 },
             success: function(o) {
                 console.log(o);
             }
@@ -295,13 +295,11 @@
         let getStones = function(DOM) {
             let countDown = DOM.find("#countDown").attr('data-time');
 
-            let stones = DOM.find(".stone-intro .strong-card").get();
+            let stones = DOM.find("a[href^='/bill/'] > em").map((i, v, o = $(v)) => Object.values(o.data())).get();
 
-            let [powerStones, energyStones] = stones;
-            powerStones = powerStones.textContent.split("\n").map(v => v.trim()).filter(String);
-            energyStones = energyStones.textContent.split("\n").map(v => v.trim()).filter(String);
+            let [freePass, powerStones, energyStones, soulStones] = stones;
 
-            return { [powerStones[0]]: parseInt(powerStones[1]), [energyStones[0]]: parseInt(energyStones[1]), "countDown": parseInt(countDown) };
+            return { freePass, powerStones, energyStones, soulStones, "countDown": parseInt(countDown) };
         };
 
         let doVote = function(callbackFn) {
@@ -310,10 +308,8 @@
 
             checkBill(function(htmlText) {
                 let dom = $('<html>').html(htmlText);
-
-                let stonesData = getStones(dom);
-
-                let [powerStones, energyStones, countDown] = Object.values(getStones(dom));
+				
+                let { powerStones, energyStones, countDown } = getStones(dom);
                 callbackFn(powerStones, energyStones, countDown);
             });
         };

@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2020-10-27
-// @version      0.162
+// @created      2020-11-12
+// @version      0.165
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -29,7 +29,7 @@
     unsafeWindow.top.selectedAccount = typeof unsafeWindow.top.selectedAccount !== "undefined" ? unsafeWindow.top.selectedAccount : null;
 
     // Raw, unencrypted and hard-coded login account information goes here...
-	var loginData = {
+    var loginData = {
         "example1@example.com": "password1",
         "example2@example.com": "password2",
         "example3@example.com": "password3",
@@ -37,12 +37,54 @@
     };
 
     var LBF_Paths = {
+
+        swLib: function() {
+            return fetch("https://www.webnovel.com/sw.js", {
+                method: "GET"
+            }).then( res => res.text()).then(jscode => {
+                let fileManifest = (() => {
+                    let scriptCode = 'try {';
+                    scriptCode += jscode.substr(jscode.indexOf("const fileManifest")).replace('const fileManifest', 'var fileManifest');
+                    scriptCode += "} catch(err) {} finally { return fileManifest; }";
+                    let fileManifest = window.eval(`new Function(${JSON.stringify(scriptCode)})()`);
+                    return fileManifest;
+                })();
+                return fileManifest;
+            });
+        },
+
         matchPath: function(pathRegex) {
             let regex = new RegExp('/' + pathRegex, 'g');
             let matchedPaths = Object.keys(LBF.cache).filter((path, id) => path.match(regex));
             return matchedPaths[0];
         },
         get index() { return this.matchPath('en/js/common/global.*.js'); },
+        get taskMap() {
+            return new Promise( (resolver) => {
+                let taskMap = this.matchPath('en/js/components/Task/index.*.js');
+
+                if (!taskMap) { // if not found -> force load it
+                    let _this = this;
+                    this.swLib().then(function(fileManifest) {
+                        let taskLibrary = fileManifest.find(function(library) {
+                            return library.url.indexOf("Task/index") !== -1;
+                        });
+
+                        let taskMapLibrary = fileManifest.find(function(library) {
+                            return library.url.indexOf("Task/taskMap") !== -1;
+                        });
+
+                        LBF.request(taskMapLibrary.url);
+
+                        LBF.request(taskLibrary.url).onload = function() {
+                            resolver(_this.matchPath('en/js/components/Task/index.*.js'));
+                        };
+                    });
+                } else {
+                    resolver(taskMap);
+                }
+            });
+        },
         get commonMethod() { return this.matchPath('en/js/common/page/commonMethod.*.js'); },
     };
 
@@ -208,8 +250,11 @@
     };*/
 
     var checkedInSS = function(callbackFn) {
-        if (typeof callbackFn === "function")
-            LBF.require(LBF_Paths.index).Task.getTaskList(1).then( (result) => callbackFn(result.data) );
+        if (typeof callbackFn === "function") {
+            LBF_Paths.taskMap.then(function(taskMap) {
+                LBF.require(taskMap).prototype.getTaskList(1).then( (result) => callbackFn(result.data) );
+            });
+        }
     };
 
     var getSSHistory = function(callbackFn) {
@@ -286,8 +331,8 @@
     };
 
     var stoneManager = (function() {
-        let checkBill = function(callbackFn) {
-            return fetch("/bill/power").then((res) => {
+        let checkBill = function(type, callbackFn) {
+            return fetch(`/bill/${type}`).then((res) => {
                 return res.text();
             }).then(callbackFn);
         };
@@ -295,22 +340,20 @@
         let getStones = function(DOM) {
             let countDown = DOM.find("#countDown").attr('data-time');
 
-            let stones = DOM.find("a[href^='/bill/'] > em").map((i, v, o = $(v)) => Object.values(o.data())).get();
+            let stone = DOM.find(".currency-area strong[class*='stone'], .currency-area strong[class*='_num']").text();
 
-            let [freePass, powerStones, energyStones, soulStones] = stones;
-
-            return { freePass, powerStones, energyStones, soulStones, "countDown": parseInt(countDown) };
+            return { currency: parseInt(stone), "countDown": parseInt(countDown) };
         };
 
-        let doVote = function(callbackFn) {
+        let doVote = function(type, callbackFn) {
             if (typeof callbackFn !== "function")
                 return;
 
-            checkBill(function(htmlText) {
+            checkBill(type, function(htmlText) {
                 let dom = $('<html>').html(htmlText);
-				
-                let { powerStones, energyStones, countDown } = getStones(dom);
-                callbackFn(powerStones, energyStones, countDown);
+
+                let { currency, countDown } = getStones(dom);
+                callbackFn(currency, countDown);
             });
         };
 
@@ -319,14 +362,16 @@
 
 
     var checkInOtherSS = function() {
-        stoneManager(function(powerStones, energyStones, countDownTilRestock) {
+        stoneManager("energy", function(energyStones, countDownTilRestock) {
             if (energyStones > 0) {
                 getMoreBooks(function(voteBooks) {
                     let items = voteBooks.data.items;
                     postEnergyVote(items[0].bookId);
                 });
             }
+        });
 
+        stoneManager("power", function(powerStones, countDownTilRestock) {
             if (powerStones > 0) {
                 getPowerStoneRankings(function(rankings) {
                     let items = rankings.data.items;

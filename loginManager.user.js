@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2020-11-12
-// @version      0.165
+// @created      2020-12-18
+// @version      0.166
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -30,10 +30,10 @@
 
     // Raw, unencrypted and hard-coded login account information goes here...
     var loginData = {
-        "example1@example.com": "password1",
-        "example2@example.com": "password2",
-        "example3@example.com": "password3",
-        "example4@example.com": "password4",
+    	"example1@example.com": "password1",
+    	"example2@example.com": "password2",
+    	"example3@example.com": "password3",
+    	"example4@example.com": "password4",
     };
 
     var LBF_Paths = {
@@ -90,6 +90,9 @@
 
     var jQueryObjects = {
         submit: "#submit",
+        loginBtn: ".login-btn",
+        logoutBtn: ".j_logout",
+        userBtn: ".j_header_user_trigger",
         inputs: ".m-input > input",
         emailButton: "a.bt.bt-circle._e",
         loginForm: ".g_mod_login.g_mod_wrap._on",
@@ -198,18 +201,36 @@
         return typeof LBF !== "undefined";
     };
 
+//     var showLoginForm = function() {
+//         if (!$(jQueryObjects.loginForm).length && lbfModuleAvailable())
+//             LBF.require(LBF_Paths.index).Login.showLoginModal();
+//     };
+
     var showLoginForm = function() {
-        if (!$(jQueryObjects.loginForm).length && lbfModuleAvailable())
-            LBF.require(LBF_Paths.index).Login.showLoginModal();
+        let loginBtn = $(jQueryObjects.loginBtn);
+        if (loginBtn.length)
+            loginBtn.click();
     };
 
     var checkIfAlreadyLoggedIn = function() {
-        return typeof g_data !== "undefined" && g_data.login.user.userId;
+        return typeof g_data !== "undefined" && !g_data.login.user.userId.match(/^$|^0$/g);
     };
 
+//     var logout = function() {
+//         if (lbfModuleAvailable() && checkIfAlreadyLoggedIn())
+//             LBF.require(LBF_Paths.index).Login.logout();
+//     };
+
     var logout = function() {
-        if (lbfModuleAvailable() && checkIfAlreadyLoggedIn())
-            LBF.require(LBF_Paths.index).Login.logout();
+        let userBtn = $(jQueryObjects.userBtn);
+        if (userBtn.length) {
+            userBtn.click();
+
+            setTimeout(function() {
+                let logoutBtn = $(jQueryObjects.logoutBtn);
+                logoutBtn.click();
+            }, 100);
+        }
     };
 
     var clickEmailLoginButton = function() {

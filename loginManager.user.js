@@ -3,7 +3,7 @@
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
 // @created      2020-12-18
-// @version      0.166
+// @version      0.167
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -30,62 +30,33 @@
 
     // Raw, unencrypted and hard-coded login account information goes here...
     var loginData = {
-    	"example1@example.com": "password1",
-    	"example2@example.com": "password2",
-    	"example3@example.com": "password3",
-    	"example4@example.com": "password4",
+        "example1@example.com": "password1",
+        "example2@example.com": "password2",
+        "example3@example.com": "password3",
+        "example4@example.com": "password4",
     };
 
-    var LBF_Paths = {
-
-        swLib: function() {
-            return fetch("https://www.webnovel.com/sw.js", {
-                method: "GET"
-            }).then( res => res.text()).then(jscode => {
-                let fileManifest = (() => {
-                    let scriptCode = 'try {';
-                    scriptCode += jscode.substr(jscode.indexOf("const fileManifest")).replace('const fileManifest', 'var fileManifest');
-                    scriptCode += "} catch(err) {} finally { return fileManifest; }";
-                    let fileManifest = window.eval(`new Function(${JSON.stringify(scriptCode)})()`);
-                    return fileManifest;
-                })();
-                return fileManifest;
-            });
-        },
-
-        matchPath: function(pathRegex) {
-            let regex = new RegExp('/' + pathRegex, 'g');
-            let matchedPaths = Object.keys(LBF.cache).filter((path, id) => path.match(regex));
-            return matchedPaths[0];
-        },
-        get index() { return this.matchPath('en/js/common/global.*.js'); },
-        get taskMap() {
-            return new Promise( (resolver) => {
-                let taskMap = this.matchPath('en/js/components/Task/index.*.js');
-
-                if (!taskMap) { // if not found -> force load it
-                    let _this = this;
-                    this.swLib().then(function(fileManifest) {
-                        let taskLibrary = fileManifest.find(function(library) {
-                            return library.url.indexOf("Task/index") !== -1;
-                        });
-
-                        let taskMapLibrary = fileManifest.find(function(library) {
-                            return library.url.indexOf("Task/taskMap") !== -1;
-                        });
-
-                        LBF.request(taskMapLibrary.url);
-
-                        LBF.request(taskLibrary.url).onload = function() {
-                            resolver(_this.matchPath('en/js/components/Task/index.*.js'));
-                        };
-                    });
-                } else {
-                    resolver(taskMap);
-                }
-            });
-        },
-        get commonMethod() { return this.matchPath('en/js/common/page/commonMethod.*.js'); },
+    var cookieManager = function() { // copy & paste from webnovel.com libs
+        var e = document;
+        return {
+            set: function(t, r, n, i, o) {
+                o && (o = new Date(+new Date + o));
+                var u = t + "=" + escape(r) + (o ? "; expires=" + o.toGMTString() : "") + (i ? "; path=" + i : "") + (n ? "; domain=" + n : "");
+                return u.length < 4096 && (e.cookie = u),
+                this
+            },
+            get: function(t) {
+                var r = e.cookie.match(new RegExp("(^| )" + t + "=([^;]*)(;|$)"));
+                return null != r ? unescape(r[2]) : null
+            },
+            del: function(t, r, n) {
+                return this.get(t) && (e.cookie = t + "=" + (n ? "; path=" + n : "") + (r ? "; domain=" + r : "") + ";expires=Thu, 01-Jan-1970 00:00:01 GMT"),
+                this
+            },
+            find: function(t) {
+                return e.cookie.match(t)
+            }
+        }
     };
 
     var jQueryObjects = {
@@ -197,15 +168,6 @@
         }, 1000);
     };
 
-    var lbfModuleAvailable = function() {
-        return typeof LBF !== "undefined";
-    };
-
-//     var showLoginForm = function() {
-//         if (!$(jQueryObjects.loginForm).length && lbfModuleAvailable())
-//             LBF.require(LBF_Paths.index).Login.showLoginModal();
-//     };
-
     var showLoginForm = function() {
         let loginBtn = $(jQueryObjects.loginBtn);
         if (loginBtn.length)
@@ -215,11 +177,6 @@
     var checkIfAlreadyLoggedIn = function() {
         return typeof g_data !== "undefined" && !g_data.login.user.userId.match(/^$|^0$/g);
     };
-
-//     var logout = function() {
-//         if (lbfModuleAvailable() && checkIfAlreadyLoggedIn())
-//             LBF.require(LBF_Paths.index).Login.logout();
-//     };
 
     var logout = function() {
         let userBtn = $(jQueryObjects.userBtn);
@@ -270,10 +227,25 @@
         reCaptchaBox.click();
     };*/
 
+    var getTaskList = function(callbackFn) {
+        return $.ajax({
+            type: "GET",
+            url: "/apiajax/task/taskList",
+            data: {
+                "_csrfToken": cookieManager().get("_csrfToken"),
+                taskType: 1
+            },
+            success: function(t) {
+                if (typeof callbackFn === "function")
+                    callbackFn(t);
+            }
+        });
+    };
+
     var checkedInSS = function(callbackFn) {
         if (typeof callbackFn === "function") {
-            LBF_Paths.taskMap.then(function(taskMap) {
-                LBF.require(taskMap).prototype.getTaskList(1).then( (result) => callbackFn(result.data) );
+            getTaskList(function(result) {
+                callbackFn(result.data);
             });
         }
     };
@@ -342,11 +314,25 @@
         });
     };
 
+    var claimDailySS = function() {
+        return $.ajax({
+            type: "POST",
+            url: "/apiajax/SpiritStone/addSSAjax",
+            data: {
+                "_csrfToken": cookieManager().get("_csrfToken"),
+                "type": 1
+            },
+            success: function(msg) {
+                console.log(msg);
+            }
+        });
+    };
+
     var checkInSS = function() {
-        if (lbfModuleAvailable() && checkIfAlreadyLoggedIn()) {
+        if (checkIfAlreadyLoggedIn()) {
             checkedInSS(function(data) {
                 if (data.taskList[0].completeStatus !== 3)
-                    LBF.require(LBF_Paths.commonMethod).addSignInSS($(window));
+                    claimDailySS();
             });
         }
     };

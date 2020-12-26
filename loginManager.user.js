@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2020-12-18
-// @version      0.167
+// @created      2020-12-26
+// @version      0.170
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -88,21 +88,29 @@
 
         var guiSettings = {
             serverTime: 'Checking...',
+            powerVoteFavorite: manageVoteFavorite.get(),
             accounts: Object.keys(loginData),
-            selection: 0,
+            selectedAccount: [ Object.keys(loginData)[unsafeWindow.top.selectedAccount || 0] ],
+            selection: 0
         };
 
         var controlKit = new ControlKit();
         controlKit.setShortcutEnable('b');
         controlKit.addPanel({label: 'WebNovel.com | Login Manager | ©MMWorks', fixed: true, align: 'right', width: 300})
-            .addStringOutput(guiSettings, 'serverTime', {label: "Server Time"})
+            .addStringOutput(guiSettings, 'serverTime', { label: "Server Time" })
+            .addStringInput(guiSettings, 'powerVoteFavorite', {
+                label: "Vote Book ID",
+                onChange: function() {
+                    manageVoteFavorite.set(guiSettings.powerVoteFavorite);
+                }
+            })
             .addSelect(guiSettings, 'accounts', {
-            label: "Account",
-            target: unsafeWindow.top.selectedAccount || 0,
-            onChange: function(index) {
-                guiSettings.selection = index;
-            }
-        })
+                label: "Account",
+                target: 'selectedAccount',
+                onChange: function(index) {
+                    guiSettings.selection = index;
+                }
+            })
 		.addButton('Login', function() {
             if (checkIfAlreadyLoggedIn()) {
                 sessionStorage.setItem("autoLogin", guiSettings.selection);
@@ -136,6 +144,18 @@
         controlKit_Element.addEventListener('mouseleave', toggleHide, false);
         createClock();
     };
+
+    var manageVoteFavorite = (function() {
+        return {
+            get: function() {
+                return sessionStorage.getItem("powerVoteFavorite") || 'None';
+            },
+            set: function(favoriteBookId) {
+                if (favoriteBookId.length === 0 || favoriteBookId.length === "18799565706217805".length)
+                    sessionStorage.setItem("powerVoteFavorite", favoriteBookId);
+            }
+        }
+    })();
 
     var getServerTime = function() {
         return $.ajax({async: false}).getResponseHeader( 'Date' );
@@ -269,7 +289,7 @@
         return $.ajax({
             type: "GET",
             url: "/apiajax/powerStone/getListAjax",
-            data: {pageIndex: 1, type: 2},
+            data: { pageIndex: 1, type: 2 },
             success: function(a) {
                 if (typeof callbackFn === "function")
                     callbackFn(a);
@@ -371,19 +391,29 @@
     var checkInOtherSS = function() {
         stoneManager("energy", function(energyStones, countDownTilRestock) {
             if (energyStones > 0) {
-                getMoreBooks(function(voteBooks) {
-                    let items = voteBooks.data.items;
-                    postEnergyVote(items[0].bookId);
-                });
+                let voteFavorite = manageVoteFavorite.get();
+                if (voteFavorite !== 'None') {
+                    postEnergyVote(voteFavorite);
+                } else {
+                    getMoreBooks(function(voteBooks) {
+                        let items = voteBooks.data.items;
+                        postEnergyVote(items[0].bookId);
+                    });
+                }
             }
         });
 
         stoneManager("power", function(powerStones, countDownTilRestock) {
             if (powerStones > 0) {
-                getPowerStoneRankings(function(rankings) {
-                    let items = rankings.data.items;
-                    postPowerVote(items[0].bookId);
-                });
+                let voteFavorite = manageVoteFavorite.get();
+                if (voteFavorite !== 'None') {
+                    postPowerVote(voteFavorite);
+                } else {
+                    getPowerStoneRankings(function(rankings) {
+                        let items = rankings.data.items;
+                        postPowerVote(items[0].bookId);
+                    });
+                }
             }
         });
     };

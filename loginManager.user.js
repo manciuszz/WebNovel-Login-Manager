@@ -3,7 +3,7 @@
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
 // @created      2020-12-26
-// @version      0.170
+// @version      0.171
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -391,15 +391,15 @@
     var checkInOtherSS = function() {
         stoneManager("energy", function(energyStones, countDownTilRestock) {
             if (energyStones > 0) {
-                let voteFavorite = manageVoteFavorite.get();
-                if (voteFavorite !== 'None') {
-                    postEnergyVote(voteFavorite);
-                } else {
+                //let voteFavorite = manageVoteFavorite.get();
+                //if (voteFavorite !== 'None') {
+                   //postEnergyVote(voteFavorite);
+                //} else {
                     getMoreBooks(function(voteBooks) {
                         let items = voteBooks.data.items;
                         postEnergyVote(items[0].bookId);
                     });
-                }
+                //}
             }
         });
 

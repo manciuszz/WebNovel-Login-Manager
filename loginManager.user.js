@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2021-01-14
-// @version      0.172
+// @created      2021-01-17
+// @version      0.175
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -86,6 +86,8 @@
             }
         }
 
+        VoteCollector.init();
+
         var guiSettings = {
             serverTime: 'Checking...',
             powerVoteFavorite: manageVoteFavorite.get(),
@@ -112,6 +114,8 @@
                 }
             })
 		.addButton('Login', function() {
+            VoteCollector.reset();
+
             if (checkIfAlreadyLoggedIn()) {
                 sessionStorage.setItem("autoLogin", guiSettings.selection);
                 logout();
@@ -120,12 +124,21 @@
             }
         })
 		.addButton('Logout', function() {
+            VoteCollector.reset();
             unsafeWindow.top.selectedAccount = null;
             logout();
         })
 		.addButton('Register', function() {
             window.open('https://passport.webnovel.com/register.html?appid=900&areaid=1&returnurl=https%3A%2F%2Fwww.webnovel.com%2FloginSuccess&auto=1&autotime=0&source=&ver=2&fromuid=0&target=iframe&option=', "_blank", "toolbar=yes,top=100,left=600,width=500,height=800");
             window.open('https://www.google.com/search?q=temporary+mail', "_blank", "toolbar=yes,top=100,left=600,width=1080,height=800");
+        })
+        .addButton(`Collect All Votes (${ VoteCollector.collectVotes ? "Enabled" : "Disabled"})`, function() {
+            VoteCollector.collectVotes = !VoteCollector.collectVotes;
+            if (checkIfAlreadyLoggedIn()) {
+                logout();
+            } else {
+                unsafeWindow.top.selectedAccount = guiSettings.selection;
+            }
         });
         controlKit._panels[0]._onMenuHideMouseDown(); // Start minimized.
         var controlKit_Element = document.getElementById("controlKit");
@@ -145,6 +158,84 @@
         createClock();
     };
 
+    var VoteCollector = (function() {
+        return {
+            get collectVotes() {
+                return localStorage.getItem("collectVotes") === "true";
+            },
+            set collectVotes(state) {
+                localStorage.setItem("collectVotes", state === true);
+            },
+            get allAccountsHasVoted() {
+                let result = Object.keys(loginData).length;
+                let accountStats = this.votedAccountStats;
+                for(let email in accountStats) {
+                    if (accountStats[email]) {
+                        result--;
+                    }
+                }
+                return result === 0;
+            },
+            get votedAccountStats() {
+                return JSON.parse(localStorage.getItem("votedAccountStats"));
+            },
+            reset: function() {
+                localStorage.removeItem('collectVotes');
+                localStorage.removeItem('votedAccountStats');
+            },
+            markAccountAsVoted: function(accountEmail) {
+                let accountStats = this.votedAccountStats;
+
+                if (!this.votedAccountStats) {
+                    accountStats = JSON.parse(JSON.stringify(loginData));
+                    for(let email in accountStats) {
+                        accountStats[email] = false;
+                    }
+                }
+
+                accountStats[accountEmail] = true;
+
+                localStorage.setItem("votedAccountStats", JSON.stringify(accountStats));
+            },
+            get stoneStatus() {
+                return {
+                    "SS": g_data.login.user.SS,
+                    "PS": g_data.login.user.PS,
+                    "CheckIn": g_data.login.user.isCheckIn
+                };
+            },
+            init: function() {
+                if (!this.collectVotes)
+                    return;
+
+                let selectNotVotedAccount = () => Object.values(this.votedAccountStats).findIndex((status) => status === false);
+
+                let collectorWatcherId = setInterval(() => {
+                    if (checkIfAlreadyLoggedIn()) {
+                        if (this.allAccountsHasVoted) {
+                            this.collectVotes = false;
+                            clearInterval(collectorWatcherId);
+                        } else if (this.stoneStatus.SS === 0 && this.stoneStatus.PS == 0 && this.stoneStatus.CheckIn === 1) {
+                            let currentAccountEmail = g_data.login.user.email;
+
+                            if (this.votedAccountStats == null || !this.votedAccountStats[currentAccountEmail])
+                                this.markAccountAsVoted(currentAccountEmail);
+
+                            sessionStorage.setItem("autoLogin", selectNotVotedAccount());
+                            logout();
+                        } else if (this.stoneStatus.SS !== 0 || this.stoneStatus.PS !== 0 || this.stoneStatus.CheckIn !== 1) {
+                            checkInSS();
+                            checkInOtherSS();
+                            setTimeout(() => { window.location.reload(); }, 350);
+                        }
+                    } else {
+                        unsafeWindow.top.selectedAccount = selectNotVotedAccount();
+                    }
+                }, 500);
+            }
+        };
+    })();
+
     var manageVoteFavorite = (function() {
         return {
             get: function() {
@@ -154,7 +245,7 @@
                 if (favoriteBookId.length === 0 || favoriteBookId.length === "18799565706217805".length)
                     localStorage.setItem("powerVoteFavorite", favoriteBookId);
             }
-        }
+        };
     })();
 
     var getServerTime = function() {

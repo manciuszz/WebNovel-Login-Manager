@@ -208,7 +208,7 @@
                 if (!this.collectVotes)
                     return;
 
-                let selectNotVotedAccount = () => Object.values(this.votedAccountStats).findIndex((status) => status === false);
+                let selectNotVotedAccount = () => this.votedAccountStats ? Object.values(this.votedAccountStats).findIndex((status) => status === false) : 0;
 
                 let collectorWatcherId = setInterval(() => {
                     if (checkIfAlreadyLoggedIn()) {

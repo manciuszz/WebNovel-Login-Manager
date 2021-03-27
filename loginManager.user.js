@@ -286,7 +286,7 @@
     };
 
     var checkIfAlreadyLoggedIn = function() {
-        return typeof g_data !== "undefined" && !g_data.login.user.userId.toString().match(/^$|^0$/g);
+        return typeof g_data !== "undefined" && g_data.login.user.userId && !g_data.login.user.userId.toString().match(/^$|^0$/g);
     };
 
     var logout = function() {

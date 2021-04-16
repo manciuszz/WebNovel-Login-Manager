@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2021-03-28
-// @version      0.177
+// @created      2021-04-17
+// @version      0.178
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -286,7 +286,7 @@
     };
 
     var checkIfAlreadyLoggedIn = function() {
-        return typeof g_data !== "undefined" && g_data.login.user.userId && !g_data.login.user.userId.toString().match(/^$|^0$/g);
+        return typeof g_data !== "undefined" && g_data.login.user.guid && !g_data.login.user.guid.toString().match(/^$|^0$/g); // 2021-04-17: Apparently not all pages has 'userId'...
     };
 
     var logout = function() {

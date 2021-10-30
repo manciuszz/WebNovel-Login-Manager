@@ -2,8 +2,8 @@
 // @name         WebNovel.com | Login Manager
 // @description  Auto-Login and Check-In Manager for WebNovel.com. Created for the sole purpose of easier management of fake accounts that 'farms' soulstones.
 // @author       Manciuszz
-// @created      2021-04-17
-// @version      0.178
+// @created      2021-10-29
+// @version      0.180
 // @match        *://www.webnovel.com/*
 // @match        *://passport.webnovel.com/login.html*
 // @match        *://passport.webnovel.com/emaillogin.html*
@@ -249,7 +249,7 @@
     })();
 
     var getServerTime = function() {
-        return $.ajax({async: false}).getResponseHeader( 'Date' );
+        return $.ajax({async: false}).getResponseHeader('Date');
     };
 
     var createClock = function() {
@@ -258,7 +258,7 @@
             if (typeof $ === "undefined")
                 return;
             if (!seconds) {
-                [hours, minutes, seconds] = getServerTime().split(' ')[4].split(":");
+                [hours, minutes, seconds] = getServerTime()?.split(' ')[4].split(":") || ["-1","-1","-1"];
                 serverTimeObject = $("#controlKit :contains('Server Time')").find('textarea');
                 if (!serverTimeObject.length)
                     return clearInterval(clockId);
@@ -341,7 +341,7 @@
     var getTaskList = function(callbackFn) {
         return $.ajax({
             type: "GET",
-            url: "/apiajax/task/taskList",
+            url: "/go/pcm/task/getTaskList",
             data: {
                 "_csrfToken": cookieManager().get("_csrfToken"),
                 taskType: 1
@@ -361,26 +361,35 @@
         }
     };
 
-    var getSSHistory = function(callbackFn) {
-        return $.ajax({
-            type: "GET",
-            url: "/apiajax/SpiritStone/getSSHistoryAjax",
-            data: {
-                pageIndex: 1,
-                transType: 1
-            },
-            success: function(t) {
-                if (typeof callbackFn === "function")
-                    callbackFn(t);
-            }
-        });
-    };
+    // var getSSHistory = function(callbackFn) {
+    //     return $.ajax({
+    //         type: "GET",
+    //         url: "/apiajax/SpiritStone/getSSHistoryAjax",
+    //         data: {
+    //             pageIndex: 1,
+    //             transType: 1
+    //         },
+    //         success: function(t) {
+    //             if (typeof callbackFn === "function")
+    //                 callbackFn(t);
+    //         }
+    //     });
+    // };
 
     var getPowerStoneRankings = function(callbackFn) {
         return $.ajax({
             type: "GET",
-            url: "/apiajax/powerStone/getListAjax",
-            data: { pageIndex: 1, type: 2 },
+            url: "/go/pcm/category/getRankList",
+            data: {
+                pageIndex: 1,
+                type: 4,
+                rankId: "power_rank",
+                listType: 3,
+                rankName: "Power",
+                timeType: 3,
+                sex: 1,
+                signStatus: 1
+            },
             success: function(a) {
                 if (typeof callbackFn === "function")
                     callbackFn(a);
@@ -391,14 +400,17 @@
     var getMoreBooks = function(callbackFn) {
         return $.ajax({
             type: "GET",
-            url: "/apiajax/translationVote/getAjax",
+            url: "/vote",
+            dataType: "html",
             data: {
-                pageIndex: 1,
-                gender: 1
+                sex: 1
             },
-            success: function(e) {
-                if (typeof callbackFn === "function")
-                    callbackFn(e);
+            success: function(htmlText) {
+                if (typeof callbackFn === "function") {
+                    const htmlDoc = new DOMParser().parseFromString(htmlText, 'text/html');
+                    const bookList = $(htmlDoc).find("a[class*='vote'][data-bookid]").map((i, e) => $(e).data());
+                    callbackFn(bookList);
+                }
             }
         });
     };
@@ -406,7 +418,7 @@
     var postPowerVote = function(bookId) {
         return $.ajax({
             type: "POST",
-            url: "/apiajax/powerStone/vote",
+            url: "/go/pcm/powerStone/vote",
             data: { bookId: bookId, novelType: 0 },
             success: function(o) {
                 console.log(o);
@@ -417,7 +429,7 @@
     var postEnergyVote = function(bookId) {
         return $.ajax({
             type: "POST",
-            url: "/apiajax/translationVote/vote",
+            url: "/go/pcm/vote/like",
             data: { bookId: bookId },
             success: function(msg) {
                 console.log(msg);
@@ -428,7 +440,7 @@
     var claimDailySS = function() {
         return $.ajax({
             type: "POST",
-            url: "/apiajax/SpiritStone/addSSAjax",
+            url: "/go/pcm/spiritStone/checkIn",
             data: {
                 "_csrfToken": cookieManager().get("_csrfToken"),
                 "type": 1
@@ -487,8 +499,7 @@
                    //postEnergyVote(voteFavorite);
                 //} else {
                     getMoreBooks(function(voteBooks) {
-                        let items = voteBooks.data.items;
-                        postEnergyVote(items[0].bookId);
+                        postEnergyVote(voteBooks[0].bookid);
                     });
                 //}
             }
@@ -501,7 +512,7 @@
                     postPowerVote(voteFavorite);
                 } else {
                     getPowerStoneRankings(function(rankings) {
-                        let items = rankings.data.items;
+                        let items = rankings.data.bookItems;
                         postPowerVote(items[0].bookId);
                     });
                 }
@@ -519,6 +530,7 @@
                 console.log("[WebNovel-Login Manager] Already logged in as " + g_data.login.user.userName);
                 return clearInterval(intervalId);
             } else if (unsafeWindow.top.selectedAccount === null) {
+                console.log("Auto-login disabled! Re-login.");
                 return;
             }
 
